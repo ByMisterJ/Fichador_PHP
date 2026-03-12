@@ -50,7 +50,58 @@ $form_data = [];
 // Inicializar clase GruposHorarios
 $gruposHorarios = new GruposHorarios();
 
+// Cargar datos del grupo horario
+$form_data = $gruposHorarios->cargarDatosGrupoHorarioFlexible($grupo_id, $empresa_id);
+if (!$form_data) {
+    header('Location: grupos_horarios.php');
+    exit;
+}
 
+// Obtener empleados de la empresa
+$empleados = obtenerEmpleadosEmpresa($empresa_id);
+
+// Procesar formulario
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $post_data = procesarFormularioFlexible($_POST);
+    
+    // Validar datos
+    $errors = GrupoHorarioValidator::validarHorarioFlexible($post_data);
+    
+    if (empty($errors)) {
+        // Actualizar grupo horario usando la clase centralizada
+        $resultado = $gruposHorarios->actualizarGrupoHorarioFlexible($grupo_id, $post_data, $empresa_id);
+        
+        if ($resultado['success']) {
+            header('Location: grupos_horarios.php?success=grupo_actualizado');
+            exit;
+        } else {
+            $errors['general'] = 'Error al actualizar el grupo horario: ' . $resultado['error'];
+        }
+    } else {
+        // Update form data with posted values
+        $form_data = array_merge($form_data, $post_data);
+    }
+}
+
+/**
+ * Obtener empleados de la empresa
+ */
+function obtenerEmpleadosEmpresa($empresa_id) {
+    try {
+        $pdo = getDbConnection();
+        $stmt = $pdo->prepare("
+            SELECT id, nombre_completo, rol 
+            FROM trabajador 
+            WHERE empresa_id = ? AND activo = 1 AND sistema = 0 
+            ORDER BY nombre_completo ASC
+        ");
+        $stmt->execute([$empresa_id]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error al obtener empleados: " . $e->getMessage());
+        return [];
+    }
+}
 
 /**
  * Procesar datos del formulario
