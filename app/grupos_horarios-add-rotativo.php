@@ -47,7 +47,25 @@ $gruposHorarios = new GruposHorarios();
 // Obtener empleados de la empresa
 $empleados = obtenerEmpleadosEmpresa($empresa_id);
 
-
+// Procesar formulario
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $form_data = procesarFormularioRotativo($_POST);
+    
+    // Validar datos
+    $errors = GrupoHorarioValidator::validarHorarioRotativo($form_data);
+    
+    if (empty($errors)) {
+        // Crear grupo horario usando la clase centralizada
+        $resultado = $gruposHorarios->crearGrupoHorarioRotativo($form_data, $empresa_id);
+        
+        if ($resultado['success']) {
+            header('Location: grupos_horarios.php?success=grupo_creado');
+            exit;
+        } else {
+            $errors['general'] = 'Error al crear el grupo horario: ' . $resultado['error'];
+        }
+    }
+}
 
 /**
  * Obtener empleados de la empresa
