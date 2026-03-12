@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir archivos necesarios
+// Incluir los modelos, componentes y utilidades necesarios para esta vista.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/Vacaciones.php';
 require_once __DIR__ . '/../shared/components/MenuHelper.php';
@@ -12,31 +12,31 @@ require_once __DIR__ . '/../shared/layouts/BaseLayout.php';
 require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Obtener rol del trabajador (permitir empleados, administradores y supervisores)
+// Obtener el rol del trabajador autenticado para determinar el nivel de acceso al módulo de vacaciones.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Inicializar clase Vacaciones
+// Instanciar el modelo Vacaciones para acceder a los métodos de gestión de periodos vacacionales.
 $vacaciones = new Vacaciones();
 
-// Obtener conexión a la base de datos
+// Obtener la conexión PDO a la base de datos para consultas directas fuera del modelo.
 $pdo = getDbConnection();
 
-// Obtener centro del supervisor para control de acceso
+// Obtener el centro asignado al supervisor para filtrar las solicitudes de su ámbito.
 $centro_id_supervisor = null;
 if (strtolower($rol_trabajador) === 'supervisor') {
     $stmt = $pdo->prepare("SELECT centro_id FROM trabajador WHERE id = ?");
@@ -45,7 +45,7 @@ if (strtolower($rol_trabajador) === 'supervisor') {
     $centro_id_supervisor = $supervisor_data['centro_id'] ?? null;
 }
 
-// Obtener filtros de la URL
+// Leer los parámetros de filtrado enviados por GET para restringir el listado de vacaciones.
 $filtros = [
     'fecha_inicio' => $_GET['fecha_inicio'] ?? '',
     'fecha_fin' => $_GET['fecha_fin'] ?? '',
@@ -55,46 +55,46 @@ $filtros = [
     'motivo' => $_GET['motivo'] ?? ''
 ];
 
-// Si es la primera carga (sin parámetros GET), aplicar filtro por defecto
+// En la primera carga sin parámetros, aplicar el filtro por defecto (año actual).
 if (empty($_GET)) {
     $filtros['estado'] = 'pendiente';
 }
 
-// Para empleados, filtrar solo sus propias vacaciones
+// Para usuarios con rol empleado, restringir la vista a sus propias solicitudes de vacaciones.
 if (strtolower($rol_trabajador) === 'empleado') {
     $filtros['trabajador_id'] = $trabajador_id;
 }
 
-// Obtener datos para filtros y tabla
+// Obtener los datos necesarios para los selectores de filtros y la tabla principal de vacaciones.
 $vacaciones_list = $vacaciones->obtenerVacacionesPorEmpresa($empresa_id, $filtros, $centro_id_supervisor);
 $empleados_options = $vacaciones->obtenerEmpleadosParaFiltro($empresa_id, $centro_id_supervisor);
 $centros_options = $vacaciones->obtenerCentrosParaFiltro($empresa_id);
 $motivos_options = $vacaciones->obtenerMotivosDisponibles();
 $estados_options = $vacaciones->obtenerEstadosDisponibles();
 
-// Ensure arrays are not null
+// Asegurar que los arrays de datos no sean null para evitar errores en iteraciones posteriores.
 $vacaciones_list = $vacaciones_list ?? [];
 $empleados_options = $empleados_options ?? [];
 $centros_options = $centros_options ?? [];
 $motivos_options = $motivos_options ?? [];
 $estados_options = $estados_options ?? [];
 
-// Contar estadísticas
+// Calcular las estadísticas agregadas (aprobadas, pendientes, rechazadas) para el encabezado.
 $total_vacaciones = count($vacaciones_list);
 $pendientes = count(array_filter($vacaciones_list, function($v) { return $v['estado'] === 'pendiente'; }));
 $aprobadas = count(array_filter($vacaciones_list, function($v) { return $v['estado'] === 'aprobada'; }));
 $rechazadas = count(array_filter($vacaciones_list, function($v) { return $v['estado'] === 'rechazada'; }));
 
-// Process any actions or notifications
+// Procesar acciones pendientes o notificaciones de operaciones anteriores (éxito, error, etc.).
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido de vacaciones
+// Función encapsuladora que genera el HTML del módulo de vacaciones usando output buffering.
 function renderVacacionesContent($vacaciones_list, $filtros, $empleados_options, $centros_options, $motivos_options, $estados_options, $total_vacaciones, $pendientes, $aprobadas, $rechazadas, $rol_trabajador, $config_empresa) {
     
     ob_start();
@@ -464,13 +464,13 @@ function renderVacacionesContent($vacaciones_list, $filtros, $empleados_options,
         }
 
         function exportarVacaciones() {
-            // Obtener parámetros actuales de la URL
+            // Leer los parámetros de filtrado actuales de la query string para incluirlos en la URL de exportación.
             const urlParams = new URLSearchParams(window.location.search);
 
-            // Construir URL de exportación
+            // Construir la URL del endpoint de exportación incluyendo los filtros activos como parámetros GET.
             const exportUrl = 'generar_vacaciones_export.php?' + urlParams.toString();
 
-            // Abrir en nueva ventana/pestaña para descarga
+            // Abrir la URL de exportación en una nueva pestaña para que el navegador descargue el archivo.
             window.open(exportUrl, '_blank');
         }
     </script>
@@ -481,11 +481,11 @@ function renderVacacionesContent($vacaciones_list, $filtros, $empleados_options,
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 try {
     $content = renderVacacionesContent($vacaciones_list, $filtros, $empleados_options, $centros_options, $motivos_options, $estados_options, $total_vacaciones, $pendientes, $aprobadas, $rechazadas, $rol_trabajador, $config_empresa);
 
-    // Usar el BaseLayout para renderizar la página completa
+    // Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
     $page_title = strtolower($rol_trabajador) === 'empleado' ? 'Mis Vacaciones' : 'Vacaciones / Ausencias';
     BaseLayout::render($page_title, $content, $config_empresa, $user_data);
 } catch (Exception $e) {

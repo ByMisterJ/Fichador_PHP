@@ -1,14 +1,14 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir la clase Trabajador para usar el método de cerrar sesión
+// Incluir el modelo Trabajador para acceder al método de cierre de sesión.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 
-// Cerrar sesión usando el método de la clase Trabajador
+// Destruir la sesión activa del trabajador y limpiar los datos de autenticación.
 Trabajador::cerrarSesion();
 
-// Redirigir al login
+// Redirigir al formulario de autenticación tras el cierre de sesión.
 header('Location: /app/login.php');
 exit();
 ?> 

@@ -1,16 +1,16 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Include necessary files
+// Incluir el modelo Trabajador para comprobar el estado de autenticación.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 
-// Check if user is already logged in
+// Comprobar si el usuario ya dispone de una sesión autenticada activa.
 if (Trabajador::estaLogueado()) {
-    // If already logged in, redirect to dashboard
+    // Si la sesión es válida, redirigir al panel de control (dashboard).
     header('Location: /app/dashboard.php');
 } else {
-    // If not logged in, redirect to login
+    // Si no existe sesión activa, redirigir al formulario de autenticación por PIN.
     header('Location: /app/login.php');
 }
 exit;

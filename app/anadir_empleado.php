@@ -1,7 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
+// Incluir modelos, validadores, componentes de formulario y utilidades necesarias para este controlador.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/GruposHorarios.php';
 require_once __DIR__ . '/../shared/validators/EmpleadoValidator.php';
@@ -12,31 +13,31 @@ require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 require_once __DIR__ . '/../config/database.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada activa; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Verificar rol (solo admin y supervisor pueden añadir empleados)
+// Verificar que el rol del usuario autoriza la acción: solo administradores y supervisores pueden crear empleados.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     header('Location: /app/dashboard.php');
     exit;
 }
 
-// Inicializar clases
+// Instanciar los modelos necesarios para la gestión de empleados y grupos horarios.
 $trabajador = new Trabajador();
 $gruposHorarios = new GruposHorarios();
 
-// Obtener configuración de la empresa
+// Obtener el identificador de empresa y la configuración de la empresa desde la sesión.
 $empresa_id = $_SESSION['empresa_id'];
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
 $errores = [];
 $datos = [];
 
-// Manejar generación de PIN via AJAX
+// Gestionar la generación de PIN único vía petición AJAX (GET con action=generar_pin).
 if (isset($_GET['action']) && $_GET['action'] === 'generar_pin') {
     header('Content-Type: application/json');
     $pin_generado = $trabajador->generarPinUnico($empresa_id);
@@ -44,16 +45,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'generar_pin') {
     exit;
 }
 
-// Procesar formulario
+// Procesar el envío del formulario de alta de empleado (método HTTP POST).
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Procesar datos del formulario usando método centralizado
+    // Normalizar y estructurar los datos del formulario usando el método centralizado del modelo.
     $datos = Trabajador::procesarFormularioEmpleado($_POST, $empresa_id);
     
-    // Validar usando el validador centralizado
+    // Validar los datos con el validador centralizado antes de persistir en la base de datos.
     $errores = EmpleadoValidator::validarEmpleadoCreacion($datos, $trabajador, $empresa_id);
     
     if (empty($errores)) {
-        // Crear empleado usando método centralizado
+        // Insertar el nuevo trabajador en la base de datos mediante el método del modelo.
         $resultado = $trabajador->crearTrabajador($datos);
         
         if ($resultado) {
@@ -65,25 +66,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Preparar opciones para el formulario
+// Preparar el array de opciones para los selects del formulario (grupos horarios, centros, rol).
 $opciones = [
     'grupos_horario' => $gruposHorarios->obtenerGruposHorarioParaSelect($empresa_id),
     'centros' => $trabajador->obtenerCentrosEmpresa($empresa_id),
     'rol_trabajador' => $rol_trabajador
 ];
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido
+// Función encapsuladora que genera el HTML del contenido principal usando output buffering.
 function renderContent($datos, $errores, $opciones) {
     ob_start();
     ?>
@@ -112,9 +113,9 @@ function renderContent($datos, $errores, $opciones) {
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado por la función renderContent mediante output buffering.
 $content = renderContent($datos, $errores, $opciones);
 
-// Usar el BaseLayout para renderizar la página completa
+// Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
 BaseLayout::render('Añadir nuevo empleado', $content, $config_empresa, $user_data);
 ?> 

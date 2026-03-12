@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir archivos necesarios
+// Incluir los modelos, componentes y utilidades necesarios para esta vista.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/Fichajes.php';
 require_once __DIR__ . '/../shared/components/MenuHelper.php';
@@ -12,35 +12,35 @@ require_once __DIR__ . '/../shared/layouts/BaseLayout.php';
 require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Verificar que el usuario tenga permisos (solo administradores y supervisores)
+// Verificar que el rol del usuario autoriza el acceso: solo administradores y supervisores pueden continuar.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     header('Location: /app/dashboard.php');
     exit;
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Inicializar clase Fichajes
+// Instanciar el modelo Fichajes para acceder a los métodos de registro, consulta y gestión de fichajes.
 $fichajes = new Fichajes();
 
-// Obtener conexión a la base de datos
+// Obtener la conexión PDO a la base de datos para consultas directas fuera del modelo.
 $pdo = getDbConnection();
 
-// Obtener centro del supervisor para control de acceso
+// Obtener el centro asignado al supervisor para filtrar los fichajes de su ámbito de responsabilidad.
 $centro_id_supervisor = null;
 if (strtolower($rol_trabajador) === 'supervisor') {
     $stmt = $pdo->prepare("SELECT centro_id FROM trabajador WHERE id = ?");
@@ -49,18 +49,18 @@ if (strtolower($rol_trabajador) === 'supervisor') {
     $centro_id_supervisor = $supervisor_data['centro_id'] ?? null;
 }
 
-// Limpiar filtros de sesión si se solicita
+// Limpiar los filtros persistidos en sesión si el usuario solicita restablecer la búsqueda.
 if (isset($_GET['clear_filters']) && $_GET['clear_filters'] === '1') {
     unset($_SESSION['fichajes_filtros']);
-    // Redirigir para limpiar la URL
+    // Redirigir con una redirección HTTP 302 para limpiar el parámetro limpiar_filtros de la URL.
     header('Location: fichajes.php');
     exit;
 }
 
-// Determinar si hay filtros en la URL
+// Determinar si la petición actual incluye parámetros de filtrado en la query string.
 $hay_filtros_url = !empty($_GET);
 
-// Si hay filtros en la URL, usarlos y guardarlos en sesión
+// Si se reciben filtros por GET, aplicarlos y persistirlos en sesión para futuras visitas.
 if ($hay_filtros_url) {
     $filtros = [
         'hora_desde' => $_GET['hora_desde'] ?? '',
@@ -73,7 +73,7 @@ if ($hay_filtros_url) {
         'mostrar_eliminados' => $_GET['mostrar_eliminados'] ?? ''
     ];
 
-    // Guardar filtros en sesión (excepto mostrar_eliminados y modo_edicion que son estados de UI)
+    // Guardar los filtros en sesión (excepto flags de UI como mostrar_eliminados y modo_edicion).
     $_SESSION['fichajes_filtros'] = [
         'hora_desde' => $filtros['hora_desde'],
         'hora_hasta' => $filtros['hora_hasta'],
@@ -84,13 +84,13 @@ if ($hay_filtros_url) {
         'tipo_incidencia' => $filtros['tipo_incidencia']
     ];
 } else {
-    // Si no hay filtros en URL, intentar restaurar desde sesión
+    // Si no hay filtros en la URL, intentar restaurar los filtros persistidos en sesión.
     if (isset($_SESSION['fichajes_filtros'])) {
         $filtros = $_SESSION['fichajes_filtros'];
-        // Añadir mostrar_eliminados desde GET o vacío
+        // Incorporar el flag mostrar_eliminados desde el GET si está disponible.
         $filtros['mostrar_eliminados'] = $_GET['mostrar_eliminados'] ?? '';
     } else {
-        // Primera vez, usar filtros vacíos
+        // Primera visita sin filtros previos: inicializar con un array vacío.
         $filtros = [
             'hora_desde' => '',
             'hora_hasta' => '',
@@ -104,39 +104,39 @@ if ($hay_filtros_url) {
     }
 }
 
-// Establecer fechas por defecto (usar rango con datos reales)
+// Establecer el rango de fechas por defecto para el filtro si no se especifica ninguno.
 if( $filtros['fecha_desde'] == '') {
     $fecha_ayer = strtotime('-1 day');
     $fecha_ayer = date('Y-m-d', date('w', $fecha_ayer) == 0 ? strtotime('-2 days', $fecha_ayer) : $fecha_ayer);
     $filtros['fecha_desde'] = $filtros['fecha_hasta'] = $fecha_ayer; // Ayer
 }
 
-// Estados de la interfaz
+// Inicializar los flags de estado de la interfaz de usuario (modo edición, mostrar eliminados, etc.).
 $mostrar_eliminados = $filtros['mostrar_eliminados'] === '1';
 $modo_edicion = $_GET['modo_edicion'] ?? '';
 
-// Obtener datos para filtros y tabla
+// Obtener los datos necesarios para los filtros y la tabla principal de fichajes.
 $fichajes_list = $fichajes->obtenerFichajesPorEmpresa($empresa_id, $filtros, $centro_id_supervisor);
 $empleados_options = $fichajes->obtenerEmpleadosParaFiltro($empresa_id, $centro_id_supervisor);
 
-// Ensure arrays are not null
+// Asegurar que los arrays de datos no sean null para evitar errores en iteraciones posteriores.
 $fichajes_list = $fichajes_list ?? [];
 $empleados_options = $empleados_options ?? [];
 
-// Contar estadísticas
+// Calcular las estadísticas agregadas para los contadores del encabezado del listado.
 $total_registros = count($fichajes_list);
 $empleados_unicos = count(array_unique(array_column($fichajes_list, 'trabajador_id')));
 $fechas_unicas = count(array_unique(array_column($fichajes_list, 'fecha')));
 $sesiones_abiertas = count(array_filter($fichajes_list, function($f) { return $f['sesion_abierta']; }));
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para formatear sesiones usando datos limpios con layout combinado (grid)
+// Función que genera el HTML de una sesión de fichajes en formato grid combinando horarios y anotaciones.
 function formatearSesionesLimpias($sesiones, $sesiones_incidencias = [], $mostrar_eliminados = false, $modo_edicion = false, $rol_trabajador = 'empleado') {
     if (empty($sesiones)) {
         return '<div class="grid grid-cols-2 gap-4"><span class="text-gray-400 col-span-2">Sin sesiones</span></div>';
@@ -339,7 +339,7 @@ function formatearSesionesLimpias($sesiones, $sesiones_incidencias = [], $mostra
 }
 
 
-// Función auxiliar para formatear tiempo HH:MM
+// Función auxiliar que convierte segundos totales al formato legible HH:MM.
 function formatearTiempoHorasMinutos($segundos) {
     if ($segundos < 0) $segundos = 0;
     
@@ -349,10 +349,10 @@ function formatearTiempoHorasMinutos($segundos) {
     return sprintf('%02d:%02d', $horas, $minutos);
 }
 
-// Función para formatear sesiones sin ojos (fallback)
+// Función de reserva (fallback) para formatear sesiones cuando no hay botón de visualización detallada.
 
 
-// Función para renderizar el contenido de fichajes
+// Función encapsuladora que genera el HTML del listado de fichajes usando output buffering.
 function renderFichajesContent($fichajes_list, $filtros, $empleados_options, $opciones_incidencias, $total_registros, $empleados_unicos, $fechas_unicas, $sesiones_abiertas, $rol_trabajador, $config_empresa, $pdo, $mostrar_eliminados = false, $modo_edicion = false) {
     
     ob_start();
@@ -790,16 +790,16 @@ function renderFichajesContent($fichajes_list, $filtros, $empleados_options, $op
             // Cerrar dropdown
             document.getElementById('exportDropdown').classList.add('hidden');
             
-            // Obtener parámetros actuales de la URL
+            // Leer los parámetros de filtrado actuales de la query string para incluirlos en la URL de exportación.
             const urlParams = new URLSearchParams(window.location.search);
             
             // Agregar formato
             urlParams.set('formato', formato);
             
-            // Construir URL de exportación
+            // Construir la URL del endpoint de exportación incluyendo los filtros activos como parámetros GET.
             const exportUrl = 'generar_fichajes_export.php?' + urlParams.toString();
             
-            // Abrir en nueva ventana/pestaña para descarga
+            // Abrir la URL de exportación en una nueva pestaña para que el navegador descargue el archivo.
             window.open(exportUrl, '_blank');
         }
         
@@ -1026,7 +1026,7 @@ function obtenerOpcionesIncidencias($empresa_id) {
 // Obtener opciones de incidencias
 $opciones_incidencias = obtenerOpcionesIncidencias($empresa_id);
 
-// Renderizar la página
+// Capturar el HTML generado mediante output buffering e invocar el layout base para enviar la respuesta al cliente.
 $content = renderFichajesContent($fichajes_list, $filtros, $empleados_options, $opciones_incidencias, $total_registros, $empleados_unicos, $fechas_unicas, $sesiones_abiertas, $rol_trabajador, $config_empresa, $pdo, $mostrar_eliminados, $modo_edicion === '1');
 
 BaseLayout::render('Búsqueda de Fichajes', $content, $config_empresa, $user_data);

@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir las clases necesarias
+// Incluir los modelos, componentes y utilidades necesarios para la gestión de centros de trabajo.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/Centro.php';
 require_once __DIR__ . '/../shared/components/MenuHelper.php';
@@ -10,50 +10,50 @@ require_once __DIR__ . '/../shared/layouts/BaseLayout.php';
 require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 
-// Verificar si el trabajador está logueado
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit();
 }
 
-// Verificar que el usuario tenga permisos (solo administradores y supervisores)
+// Verificar que el rol del usuario autoriza el acceso: solo administradores y supervisores pueden gestionar centros.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     header('Location: /app/dashboard.php?error=sin_permisos');
     exit();
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Obtener parámetros de búsqueda
+// Leer el parámetro de búsqueda enviado por GET para filtrar la lista de centros.
 $busqueda = trim($_GET['busqueda'] ?? '');
 
-// Obtener lista de centros (con búsqueda integrada)
+// Instanciar el modelo Centro y obtener los centros de la empresa aplicando el filtro de búsqueda.
 $centro = new Centro();
 $centros = $centro->obtenerTodosCentrosEmpresa($empresa_id, $busqueda);
 
-// Obtener total de empleados activos de la empresa para mostrar en la tabla
+// Obtener el recuento total de trabajadores activos de la empresa para mostrarlo en el listado.
 $trabajador = new Trabajador();
 $total_empleados_empresa = count($trabajador->obtenerTodosTrabajadoresEmpresa($empresa_id));
 
-// Obtener documento de la empresa (usar el del primer centro si está disponible, o fallback)
+// Resolver el documento identificativo de la empresa: se usa el del primer centro o se consulta la BD como fallback.
 $documento_empresa = !empty($centros) ? $centros[0]['empresa_documento'] : $centro->obtenerDocumentoEmpresa($empresa_id);
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido de centros
+// Función encapsuladora que genera el HTML del listado de centros mediante output buffering.
 function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabajador, $total_empleados_empresa = 8, $documento_empresa = '20925308T') {
     ob_start();
     ?>
@@ -315,7 +315,7 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
     </div>
     
     <script>
-        // Auto-focus on search field
+        // Enfocar automáticamente el campo de búsqueda al cargar la página si está vacío.
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.querySelector('input[name="busqueda"]');
             if (searchInput && !searchInput.value) {
@@ -323,7 +323,7 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
             }
         });
 
-        // Clear search on Escape key
+        // Limpiar el campo de búsqueda y recargar la lista al pulsar la tecla Escape.
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 const searchInput = document.querySelector('input[name="busqueda"]');
@@ -334,7 +334,7 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
             }
         });
 
-        // Handle delete centro button clicks
+        // Gestionar los clics en los botones de eliminación de centro mediante delegación de eventos.
         document.addEventListener('click', function(e) {
             if (e.target.closest('.delete-centro-btn')) {
                 e.preventDefault();
@@ -346,9 +346,9 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
             }
         });
 
-        // Show delete confirmation dialog
+        // Mostrar el diálogo de confirmación de eliminación: primero comprueba si la operación es segura via AJAX.
         function showDeleteConfirmation(centroId, centroNombre) {
-            // First, check if deletion is safe
+            // Verificar mediante petición AJAX si la eliminación del centro es segura (sin empleados asignados).
             fetch('ajax/delete_centro.php', {
                 method: 'POST',
                 headers: {
@@ -383,9 +383,9 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
             });
         }
 
-        // Delete centro
+        // Ejecutar la eliminación del centro de trabajo mediante petición AJAX al endpoint correspondiente.
         function deleteCentro(centroId, centroNombre) {
-            // Show loading state
+            // Activar el estado de carga en el botón para proporcionar feedback visual al usuario.
             const deleteButton = document.querySelector(`[data-centro-id="${centroId}"]`);
             const originalHTML = deleteButton.innerHTML;
             deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
@@ -404,14 +404,14 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Show success message
+                    // Mostrar notificación de éxito con el mensaje devuelto por la API.
                     let successMessage = data.message;
                     if (data.empleados_desasignados > 0) {
                         successMessage += ` (${data.empleados_desasignados} empleado(s) desasignado(s))`;
                     }
                     showNotification(successMessage, 'success');
                     
-                    // Remove the row from table with animation
+                    // Eliminar la fila de la tabla aplicando una transición de opacidad para suavizar la experiencia.
                     const row = deleteButton.closest('tr');
                     row.style.opacity = '0.5';
                     row.style.transform = 'scale(0.95)';
@@ -422,10 +422,10 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
                     }, 300);
                     
                 } else {
-                    // Show error message
+                    // Mostrar el mensaje de error devuelto por el servidor.
                     showNotification('Error: ' + data.error, 'error');
                     
-                    // Restore button
+                    // Restaurar el botón a su estado original para permitir reintentos.
                     deleteButton.innerHTML = originalHTML;
                     deleteButton.disabled = false;
                 }
@@ -434,21 +434,21 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
                 console.error('Error:', error);
                 showNotification('Error de conexión al eliminar el centro', 'error');
                 
-                // Restore button
+                // Restaurar el botón a su estado original tras un error de red.
                 deleteButton.innerHTML = originalHTML;
                 deleteButton.disabled = false;
             });
         }
 
-        // Update statistics after deletion
+        // Actualizar las estadísticas del pie de tabla tras eliminar un centro.
         function updateStatistics() {
             const rows = document.querySelectorAll('tbody tr:not([data-empty])');
             const totalCentros = rows.length;
             
-            // Update table footer
+            // Actualizar el pie de tabla con el recuento actualizado.
             const tableFooter = document.querySelector('.bg-gray-50');
             if (tableFooter && totalCentros === 0) {
-                // Show empty state
+                // Mostrar el estado vacío si ya no quedan centros en la tabla.
                 const tbody = document.querySelector('tbody');
                 tbody.innerHTML = `
                     <tr data-empty>
@@ -462,13 +462,13 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
                     </tr>
                 `;
             } else if (tableFooter) {
-                // Update center count in footer
+                // Actualizar el contador de centros en el pie de tabla.
                 const countSpan = tableFooter.querySelector('.font-medium');
                 if (countSpan) {
                     countSpan.textContent = totalCentros;
                 }
                 
-                // Update plural/singular text
+                // Actualizar el texto en singular o plural según el número de centros restantes.
                 const centroText = tableFooter.querySelector('div');
                 if (centroText) {
                     centroText.innerHTML = centroText.innerHTML.replace(
@@ -479,17 +479,17 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
             }
         }
 
-        // Function to show permission notification
+        // Mostrar notificación de acceso denegado cuando el usuario no tiene permisos de administrador.
         function showPermissionNotification() {
             showNotification('Solo los administradores pueden eliminar centros', 'error');
         }
 
-        // Function to show notifications
+        // Mostrar una notificación flotante en la esquina superior derecha con soporte para distintos tipos (éxito, error, info).
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
             
-            // Set color based on type
+            // Aplicar estilos visuales según el tipo de notificación (éxito, error o informativa).
             if (type === 'success') {
                 notification.className += ' bg-green-100 border border-green-200 text-green-800';
                 notification.innerHTML = `
@@ -516,15 +516,15 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
                 `;
             }
             
-            // Add to page
+            // Añadir el elemento de notificación al DOM.
             document.body.appendChild(notification);
             
-            // Animate in
+            // Iniciar la animación de entrada con un pequeño retardo para permitir el repintado del navegador.
             setTimeout(() => {
                 notification.classList.remove('translate-x-full');
             }, 100);
             
-            // Auto remove after 5 seconds
+            // Eliminar automáticamente la notificación del DOM tras 5 segundos con animación de salida.
             setTimeout(() => {
                 notification.classList.add('translate-x-full');
                 setTimeout(() => {
@@ -539,9 +539,9 @@ function renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabaja
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 $content = renderCentrosContent($centros, $busqueda, $config_empresa, $rol_trabajador, $total_empleados_empresa, $documento_empresa);
 
-// Usar el BaseLayout para renderizar la página completa
+// Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
 BaseLayout::render('Administrar Centros', $content, $config_empresa, $user_data);
 ?> 
