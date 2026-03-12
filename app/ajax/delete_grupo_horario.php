@@ -1,21 +1,21 @@
 <?php
-// Initialize app context (includes session_start and subdomain routing)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../../shared/utils/app_init.php';
 
 require_once __DIR__ . '/../../shared/models/Trabajador.php';
 require_once __DIR__ . '/../../shared/models/GruposHorarios.php';
 
-// Set content type to JSON
+// Establecer la cabecera Content-Type para indicar al cliente que la respuesta será en formato JSON.
 header('Content-Type: application/json');
 
-// Verify authentication
+// Verificar que el usuario dispone de una sesión autenticada válida antes de procesar la petición.
 if (!Trabajador::estaLogueado()) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'No autenticado']);
     exit;
 }
 
-// Verify permissions (only admin and supervisor)
+// Verificar que el rol del usuario autoriza la operación: solo administradores y supervisores pueden eliminar grupos horarios.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     http_response_code(403);
@@ -23,14 +23,14 @@ if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     exit;
 }
 
-// Only allow POST requests
+// Restringir el endpoint únicamente a peticiones HTTP POST para seguir el principio REST.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Método no permitido']);
     exit;
 }
 
-// Get and validate input
+// Deserializar el cuerpo de la petición JSON y validar los parámetros requeridos.
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!isset($input['grupo_id']) || !is_numeric($input['grupo_id'])) {
@@ -51,16 +51,16 @@ if (!$empresa_id) {
 try {
     $gruposHorarios = new GruposHorarios();
 
-    // Handle different actions
+    // Determinar la acción a ejecutar según el parámetro 'action' recibido en el cuerpo JSON.
     $action = $input['action'] ?? 'delete';
 
     if ($action === 'check') {
-        // Check if deletion is safe
+        // Verificar si el grupo horario puede eliminarse sin dejar empleados sin horario asignado.
         $resultado = $gruposHorarios->verificarEliminacion($grupo_id, $empresa_id);
         echo json_encode($resultado);
 
     } elseif ($action === 'delete') {
-        // Perform the deletion
+        // Ejecutar la eliminación del grupo horario en la base de datos.
         $resultado = $gruposHorarios->eliminarGrupoHorario($grupo_id, $empresa_id);
 
         if ($resultado['success']) {

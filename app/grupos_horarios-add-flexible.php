@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir archivos necesarios
+// Incluir los modelos, componentes y utilidades necesarios para esta vista.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/GruposHorarios.php';
 require_once __DIR__ . '/../shared/validators/GrupoHorarioValidator.php';
@@ -14,29 +14,29 @@ require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 require_once __DIR__ . '/../shared/forms/GrupoHorarioFlexibleForm.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Verificar que el usuario tenga permisos (solo administradores y supervisores)
+// Verificar que el rol del usuario autoriza el acceso: solo administradores y supervisores pueden continuar.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     header('Location: /app/dashboard.php');
     exit;
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Inicializar variables
+// Inicializar las variables del formulario con valores por defecto antes de procesar la petición.
 $errors = [];
 $form_data = [
     'nombre' => '',
@@ -54,21 +54,21 @@ $form_data = [
     'domingo_horas' => ''
 ];
 
-// Inicializar clase GruposHorarios
+// Instanciar el modelo GruposHorarios para acceder a los métodos de gestión de grupos horarios.
 $gruposHorarios = new GruposHorarios();
 
-// Obtener empleados de la empresa
+// Obtener la lista de empleados activos de la empresa para el selector de asignación del grupo.
 $empleados = obtenerEmpleadosEmpresa($empresa_id);
 
-// Procesar formulario
+// Procesar el envío del formulario (método HTTP POST) validando y persistiendo los datos.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $form_data = procesarFormularioFlexible($_POST);
 
-    // Validar datos
+    // Validar los datos del formulario usando el validador centralizado antes de persistir.
     $errors = GrupoHorarioValidator::validarHorarioFlexible($form_data);
 
     if (empty($errors)) {
-        // Crear grupo horario usando la clase centralizada
+        // Crear el nuevo grupo horario en la base de datos usando el método del modelo centralizado.
         $resultado = $gruposHorarios->crearGrupoHorarioFlexible($form_data, $empresa_id);
 
         if ($resultado['success']) {
@@ -125,7 +125,7 @@ function procesarFormularioFlexible($post_data)
     return $data;
 }
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
@@ -177,23 +177,23 @@ function renderAddGrupoHorarioFlexibleContent($form_data, $errors, $empleados)
     <?php MultiSelect::renderScript(); ?>
 
     <script>
-        // Form validation and dynamic functionality
+        // Inicializar la validación del formulario y las funcionalidades dinámicas del lado cliente.
         document.addEventListener('DOMContentLoaded', function () {
             initializeFormValidation();
         });
 
         function initializeFormValidation() {
-            // The form component already handles its own validation
-            // Just add any additional validation if needed
+            // El componente de formulario gestiona su propia validación en el cliente.
+            // Aquí se puede añadir validación adicional específica de esta vista si fuera necesario.
         }
     </script>
     <?php
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 $content = renderAddGrupoHorarioFlexibleContent($form_data, $errors, $empleados);
 
-// Usar el BaseLayout para renderizar la página completa
+// Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
 BaseLayout::render('Añadir Grupo Horario Flexible', $content, $config_empresa, $user_data);
 ?>

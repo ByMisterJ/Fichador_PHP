@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir archivos necesarios
+// Incluir los modelos y componentes necesarios para la gestión de grupos horarios.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/GruposHorarios.php';
 require_once __DIR__ . '/../shared/components/MenuHelper.php';
@@ -10,36 +10,36 @@ require_once __DIR__ . '/../shared/layouts/BaseLayout.php';
 require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Verificar que el usuario tenga permisos (solo administradores y supervisores)
+// Verificar que el rol del usuario autoriza el acceso: solo administradores y supervisores pueden gestionar grupos horarios.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     header('Location: /app/dashboard.php');
     exit;
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Inicializar clase GruposHorarios
+// Instanciar el modelo GruposHorarios y leer el parámetro de búsqueda para filtrar el listado.
 $gruposHorarios = new GruposHorarios();
 
-// Procesar búsqueda
+// Leer el parámetro de búsqueda enviado por GET y obtener todos los grupos horarios de la empresa.
 $busqueda = trim($_GET['busqueda'] ?? '');
 $grupos_horarios = $gruposHorarios->obtenerGruposHorarioEmpresa($empresa_id);
 
-// Filtrar grupos horarios si hay búsqueda
+// Filtrar el array de grupos horarios en memoria aplicando la búsqueda por nombre, descripción o tipo.
 if (!empty($busqueda)) {
     $grupos_horarios = array_filter($grupos_horarios, function($grupo) use ($busqueda) {
         $busqueda_lower = strtolower($busqueda);
@@ -51,22 +51,22 @@ if (!empty($busqueda)) {
     });
 }
 
-// Contar estadísticas
+// Calcular estadísticas agregadas para mostrar en el encabezado del listado.
 $total_grupos = count($grupos_horarios);
 $grupos_con_empleados = count(array_filter($grupos_horarios, function($grupo) {
     return $grupo['empleados_asignados'] > 0;
 }));
 
-// Process any actions or notifications
+// Procesar acciones o notificaciones pendientes (éxito de operaciones previas, etc.).
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido de grupos horarios
+// Función encapsuladora que genera el HTML del listado de grupos horarios usando output buffering.
 function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos, $grupos_con_empleados, $config_empresa) {
     ob_start();
     ?>
@@ -322,7 +322,7 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
     </div>
     
     <script>
-        // Auto-focus on search field
+        // Enfocar automáticamente el campo de búsqueda al cargar la página si está vacío.
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.querySelector('input[name="busqueda"]');
             if (searchInput && !searchInput.value) {
@@ -330,7 +330,7 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
             }
         });
 
-        // Clear search on Escape key
+        // Limpiar el campo de búsqueda y recargar el listado al pulsar la tecla Escape.
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 const searchInput = document.querySelector('input[name="busqueda"]');
@@ -341,7 +341,7 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
             }
         });
 
-        // Delete group functionality
+        // Gestionar los clics en los botones de eliminación de grupo horario mediante delegación de eventos.
         document.addEventListener('click', function(e) {
             if (e.target.closest('.delete-grupo-btn')) {
                 e.preventDefault();
@@ -353,9 +353,9 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
             }
         });
 
-        // Show delete confirmation dialog
+        // Mostrar el diálogo de confirmación de eliminación: primero comprueba si la operación es segura via AJAX.
         function showDeleteConfirmation(grupoId, grupoNombre) {
-            // First, check if deletion is safe
+            // Verificar mediante petición AJAX si el grupo horario puede eliminarse sin dejar empleados sin horario.
             fetch('ajax/delete_grupo_horario.php', {
                 method: 'POST',
                 headers: {
@@ -390,9 +390,9 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
             });
         }
 
-        // Delete group horario
+        // Ejecutar la eliminación del grupo horario mediante petición AJAX al endpoint correspondiente.
         function deleteGrupoHorario(grupoId, grupoNombre) {
-            // Show loading state
+            // Activar el estado de carga en el botón para proporcionar feedback visual al usuario.
             const deleteButton = document.querySelector(`[data-grupo-id="${grupoId}"]`);
             const originalHTML = deleteButton.innerHTML;
             deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
@@ -411,14 +411,14 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Show success message
+                    // Mostrar notificación de éxito con el mensaje devuelto por la API.
                     let successMessage = data.message;
                     if (data.empleados_desasignados > 0) {
                         successMessage += ` (${data.empleados_desasignados} empleado(s) desasignado(s))`;
                     }
                     showNotification(successMessage, 'success');
                     
-                    // Remove the row from table with animation
+                    // Eliminar la fila de la tabla aplicando una transición de opacidad para suavizar la experiencia.
                     const row = deleteButton.closest('tr');
                     row.style.opacity = '0.5';
                     row.style.transform = 'scale(0.95)';
@@ -429,10 +429,10 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
                     }, 300);
                     
                 } else {
-                    // Show error message
+                    // Mostrar el mensaje de error devuelto por el servidor.
                     showNotification('Error: ' + data.error, 'error');
                     
-                    // Restore button
+                    // Restaurar el botón a su estado original para permitir reintentos.
                     deleteButton.innerHTML = originalHTML;
                     deleteButton.disabled = false;
                 }
@@ -441,18 +441,18 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
                 console.error('Error:', error);
                 showNotification('Error de conexión al eliminar el grupo', 'error');
                 
-                // Restore button
+                // Restaurar el botón a su estado original tras un error de red.
                 deleteButton.innerHTML = originalHTML;
                 deleteButton.disabled = false;
             });
         }
 
-        // Update statistics after deletion
+        // Actualizar los contadores de estadísticas tras eliminar un grupo horario de la tabla.
         function updateStatistics() {
             const rows = document.querySelectorAll('tbody tr:not([data-empty])');
             const totalGroups = rows.length;
             
-            // Count groups with employees
+            // Contar cuántos grupos tienen al menos un empleado asignado para actualizar el indicador.
             let groupsWithEmployees = 0;
             rows.forEach(row => {
                 const employeesBadge = row.querySelector('td:nth-child(4) .bg-blue-100');
@@ -465,10 +465,10 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
                 }
             });
             
-            // Update statistics display
+            // Actualizar los elementos del DOM con las estadísticas recalculadas.
             const statsContainer = document.querySelector('.bg-gray-50');
             if (statsContainer && totalGroups === 0) {
-                // Show empty state
+                // Mostrar el estado vacío si ya no quedan grupos en la tabla.
                 const tbody = document.querySelector('tbody');
                 tbody.innerHTML = `
                     <tr data-empty>
@@ -482,7 +482,7 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
                     </tr>
                 `;
             } else {
-                // Update counters in statistics
+                // Actualizar los contadores de grupos totales, con empleados y sin empleados.
                 const totalSpan = statsContainer.querySelector('.bg-primary + span .font-medium');
                 const withEmployeesSpan = statsContainer.querySelector('.bg-green-500 + span .font-medium');
                 const withoutEmployeesSpan = statsContainer.querySelector('.bg-gray-400 + span .font-medium');
@@ -491,19 +491,19 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
                 if (withEmployeesSpan) withEmployeesSpan.textContent = groupsWithEmployees;
                 if (withoutEmployeesSpan) withoutEmployeesSpan.textContent = totalGroups - groupsWithEmployees;
                 
-                // Update main count
+                // Actualizar el contador principal de grupos en la cabecera del listado.
                 const mainCount = document.querySelector('.mb-2 .font-medium');
                 if (mainCount) mainCount.textContent = totalGroups;
             }
         }
 
-        // Show notification function
+        // Mostrar una notificación flotante en la esquina superior derecha con soporte para distintos tipos.
         function showNotification(message, type = 'info') {
-            // Create notification element
+            // Crear el elemento de notificación con las clases CSS base.
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
             
-            // Set color based on type
+            // Aplicar estilos visuales según el tipo de notificación (éxito, error o informativa).
             if (type === 'success') {
                 notification.className += ' bg-green-100 border border-green-200 text-green-800';
                 notification.innerHTML = `
@@ -530,15 +530,15 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
                 `;
             }
             
-            // Add to page
+            // Añadir el elemento de notificación al DOM.
             document.body.appendChild(notification);
             
-            // Animate in
+            // Iniciar la animación de entrada con un pequeño retardo para permitir el repintado del navegador.
             setTimeout(() => {
                 notification.classList.remove('translate-x-full');
             }, 100);
             
-            // Auto remove after 5 seconds
+            // Eliminar automáticamente la notificación del DOM tras 5 segundos con animación de salida.
             setTimeout(() => {
                 notification.classList.add('translate-x-full');
                 setTimeout(() => {
@@ -553,9 +553,9 @@ function renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos,
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 $content = renderGruposHorariosContent($grupos_horarios, $busqueda, $total_grupos, $grupos_con_empleados, $config_empresa);
 
-// Usar el BaseLayout para renderizar la página completa
+// Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
 BaseLayout::render('Grupos Horarios', $content, $config_empresa, $user_data);
 ?> 
