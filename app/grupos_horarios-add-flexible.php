@@ -125,7 +125,27 @@ function procesarFormularioFlexible($post_data)
     return $data;
 }
 
+// Preparar datos de usuario para el layout
+$user_data = [
+    'nombre' => $nombre_trabajador,
+    'correo' => $correo_trabajador,
+    'rol' => $rol_trabajador
+];
 
+// Función para renderizar el contenido
+function renderAddGrupoHorarioFlexibleContent($form_data, $errors, $empleados)
+{
+    ob_start();
+    ?>
+    <!-- Breadcrumb -->
+    <?php
+    Breadcrumb::render([
+        ['label' => 'Inicio', 'url' => '/app/dashboard.php', 'icon' => 'fas fa-home'],
+        ['label' => 'Grupos Horarios', 'url' => '/app/grupos_horarios.php'],
+        ['label' => 'Seleccionar Tipo', 'url' => 'grupos_horarios-select.php'],
+        ['label' => 'Añadir Grupo Horario Flexible']
+    ]);
+    ?>
 
     <!-- Page Header -->
     <div class="mb-6">
