@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir archivos necesarios
+// Incluir los modelos, componentes y utilidades necesarios para esta vista.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/Festivos.php';
 require_once __DIR__ . '/../shared/components/MenuHelper.php';
@@ -11,41 +11,41 @@ require_once __DIR__ . '/../shared/layouts/BaseLayout.php';
 require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Verificar que el usuario sea administrador
+// Verificar que el rol sea administrador: la gestión de festivos está restringida exclusivamente a este rol.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (strtolower($rol_trabajador) !== 'administrador') {
     header('Location: /app/dashboard.php');
     exit;
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Inicializar clase Festivos
+// Instanciar el modelo Festivos para acceder a los métodos de gestión de días festivos.
 $festivos = new Festivos();
 
 $errors = [];
 $success_message = '';
 
-// Años disponibles para tabs (2026 por defecto)
+// Definir los años disponibles para la navegación por pestañas del calendario de festivos.
 $anios_disponibles = [2026, 2025];
 $anio_seleccionado = isset($_GET['anio']) && in_array((int)$_GET['anio'], $anios_disponibles) 
     ? (int)$_GET['anio'] 
     : 2026;
 
-// Procesar formularios
+// Procesar los formularios de alta, modificación y eliminación de festivos (método HTTP POST).
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
     $anio_seleccionado = isset($_POST['anio']) && in_array((int)$_POST['anio'], $anios_disponibles) 
@@ -169,18 +169,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener lista de festivos filtrados por año
+// Obtener la lista de festivos de la empresa filtrada por el año seleccionado en la pestaña activa.
 $festivos_list = $festivos->obtenerFestivosPorEmpresa($empresa_id, $anio_seleccionado);
 $total_festivos = $festivos->contarFestivos($empresa_id, $anio_seleccionado);
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido de festivos
+// Función encapsuladora que genera el HTML del listado de festivos usando output buffering.
 function renderFestivosContent($festivos_list, $total_festivos, $errors, $success_message, $config_empresa, $anio_seleccionado, $anios_disponibles) {
     ob_start();
     ?>
@@ -457,11 +457,11 @@ function renderFestivosContent($festivos_list, $total_festivos, $errors, $succes
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 try {
     $content = renderFestivosContent($festivos_list, $total_festivos, $errors, $success_message, $config_empresa, $anio_seleccionado, $anios_disponibles);
 
-    // Usar el BaseLayout para renderizar la página completa
+    // Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
     BaseLayout::render('Gestión de Festivos Anuales ' . $anio_seleccionado, $content, $config_empresa, $user_data);
 } catch (Exception $e) {
     error_log("Error rendering festivos page: " . $e->getMessage());

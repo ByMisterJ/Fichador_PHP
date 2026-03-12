@@ -1,15 +1,15 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir las clases necesarias
+// Incluir los modelos y componentes necesarios para la gestión del listado de empleados.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/components/MenuHelper.php';
 require_once __DIR__ . '/../shared/layouts/BaseLayout.php';
 require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 
-// Verificar si el trabajador está logueado
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit();
@@ -35,14 +35,14 @@ $empresa_id = $_SESSION['empresa_id'] ?? null;
 // Obtener configuración de la empresa
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Obtener parámetros de búsqueda
+// Leer el parámetro de búsqueda enviado por GET para filtrar el listado de empleados.
 $busqueda = trim($_GET['busqueda'] ?? '');
 
-// Obtener lista de empleados
+// Instanciar el modelo Trabajador y obtener todos los empleados activos de la empresa.
 $trabajador = new Trabajador();
 $empleados = $trabajador->obtenerTodosTrabajadoresEmpresaAdmin($empresa_id);
 
-// Filtrar empleados si hay búsqueda
+// Filtrar el array de empleados en memoria aplicando la búsqueda por nombre, DNI o tarjeta RFID.
 if (!empty($busqueda)) {
     $empleados = array_filter($empleados, function($empleado) use ($busqueda) {
         $busqueda_lower = strtolower($busqueda);
@@ -55,7 +55,7 @@ if (!empty($busqueda)) {
     });
 }
 
-// Función para obtener el color del badge según el rol
+// Función auxiliar que mapea el rol de un empleado al nombre del estilo de badge correspondiente.
 function obtenerColorRol($rol) {
     switch (strtolower($rol)) {
         case 'administrador':
@@ -68,14 +68,14 @@ function obtenerColorRol($rol) {
     }
 }
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido de empleados
+// Función encapsuladora que genera el HTML del listado de empleados usando output buffering.
 function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_empresa, $rol_trabajador) {
     ob_start();
     ?>
@@ -330,7 +330,7 @@ function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_e
     </div>
     
     <script>
-        // Auto-focus on search field
+        // Enfocar automáticamente el campo de búsqueda al cargar la página si está vacío.
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.querySelector('input[name="busqueda"]');
             if (searchInput && !searchInput.value) {
@@ -338,7 +338,7 @@ function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_e
             }
         });
 
-        // Clear search on Escape key
+        // Limpiar el campo de búsqueda y recargar la lista al pulsar la tecla Escape.
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 const searchInput = document.querySelector('input[name="busqueda"]');
@@ -349,20 +349,20 @@ function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_e
             }
         });
 
-        // Note: Map button functionality is now active and links to admin_ubicaciones.php
+        // Nota: el botón de mapa está activo y enlaza con admin_ubicaciones.php para ver ubicaciones.
 
-        // Toggle estado activo
+        // Gestionar el cambio de estado activo/inactivo del empleado mediante el toggle y delegación de eventos.
         document.addEventListener('click', function(e) {
             if (e.target.closest('.toggle-activo') && !e.target.closest('.toggle-activo').disabled) {
                 const button = e.target.closest('.toggle-activo');
                 const trabajadorId = button.dataset.trabajadorId;
                 const estadoActual = button.dataset.estado;
                 
-                // Deshabilitar botón temporalmente
+                // Deshabilitar el botón temporalmente para evitar múltiples peticiones simultáneas.
                 button.disabled = true;
                 button.style.opacity = '0.6';
                 
-                // Enviar petición AJAX
+                // Enviar la petición AJAX al endpoint de cambio de estado del empleado.
                 fetch('ajax/toggle_activo.php', {
                     method: 'POST',
                     headers: {
@@ -375,31 +375,31 @@ function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_e
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Actualizar estado visual del toggle
+                        // Actualizar la apariencia visual del toggle según el nuevo estado del empleado.
                         const nuevoEstado = data.nuevo_estado;
                         const toggle = button.querySelector('span:last-child');
                         
                         if (nuevoEstado === 1) {
-                            // Activar
+                            // Cambiar estilos al estado activo (verde).
                             button.classList.remove('bg-red-500');
                             button.classList.add('bg-green-500');
                             toggle.classList.remove('translate-x-1');
                             toggle.classList.add('translate-x-6');
                         } else {
-                            // Desactivar
+                            // Cambiar estilos al estado inactivo (rojo).
                             button.classList.remove('bg-green-500');
                             button.classList.add('bg-red-500');
                             toggle.classList.remove('translate-x-6');
                             toggle.classList.add('translate-x-1');
                         }
                         
-                        // Actualizar data-estado
+                        // Actualizar el atributo data-estado con el nuevo valor para reflejar el estado actual.
                         button.dataset.estado = nuevoEstado.toString();
                         
-                        // Mostrar mensaje de éxito
+                        // Mostrar notificación de éxito con el mensaje devuelto por el servidor.
                         showNotification(data.message, 'success');
                         
-                        // Actualizar estadísticas del footer
+                        // Recalcular y actualizar las estadísticas del pie de tabla.
                         updateFooterStats();
                         
                     } else {
@@ -411,14 +411,14 @@ function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_e
                     showNotification('Error de conexión', 'error');
                 })
                 .finally(() => {
-                    // Rehabilitar botón
+                    // Rehabilitar el botón y restaurar su opacidad tras completar la petición AJAX.
                     button.disabled = false;
                     button.style.opacity = '1';
                 });
             }
         });
 
-        // Función para mostrar notificaciones
+        // Mostrar una notificación flotante en la esquina superior derecha con soporte para distintos tipos de alerta.
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full ${
@@ -447,7 +447,7 @@ function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_e
             }, 3000);
         }
 
-        // Función para actualizar estadísticas del footer
+        // Recalcular el recuento de empleados activos e inactivos y actualizar el pie de tabla dinámicamente.
         function updateFooterStats() {
             const toggles = document.querySelectorAll('.toggle-activo');
             let activos = 0;
@@ -486,9 +486,9 @@ function renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_e
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 $content = renderEmpleadosContent($empleados, $busqueda, $trabajador_id, $config_empresa, $rol_trabajador);
 
-// Usar el BaseLayout para renderizar la página completa
+// Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
 BaseLayout::render('Administrar Empleados', $content, $config_empresa, $user_data);
 ?> 

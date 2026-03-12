@@ -1,5 +1,5 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
 // Incluir archivos necesarios
@@ -14,61 +14,61 @@ require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 require_once __DIR__ . '/../shared/forms/GrupoHorarioFijoForm.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Verificar que el usuario tenga permisos (solo administradores y supervisores)
+// Verificar que el rol del usuario autoriza el acceso: solo administradores y supervisores pueden continuar.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     header('Location: /app/dashboard.php');
     exit;
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Obtener ID del grupo horario
+// Leer y validar el identificador del grupo horario recibido por GET (parámetro id).
 $grupo_id = intval($_GET['id'] ?? 0);
 if (!$grupo_id) {
     header('Location: grupos_horarios.php');
     exit;
 }
 
-// Inicializar variables
+// Inicializar las variables del formulario con valores por defecto antes de procesar la petición.
 $errors = [];
 $form_data = [];
 
-// Inicializar clase GruposHorarios
+// Instanciar el modelo GruposHorarios para acceder a los métodos de gestión de grupos horarios.
 $gruposHorarios = new GruposHorarios();
 
-// Cargar datos del grupo horario
+// Cargar los datos del grupo horario desde la base de datos para pre-rellenar el formulario de edición.
 $form_data = $gruposHorarios->cargarDatosGrupoHorarioFijo($grupo_id, $empresa_id);
 if (!$form_data) {
     header('Location: grupos_horarios.php');
     exit;
 }
 
-// Obtener empleados de la empresa
+// Obtener la lista de empleados activos de la empresa para el selector de asignación del grupo.
 $empleados = obtenerEmpleadosEmpresa($empresa_id);
 
-// Procesar formulario
+// Procesar el envío del formulario (método HTTP POST) validando y persistiendo los datos.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $post_data = procesarFormularioFijo($_POST);
     
-    // Validar datos
+    // Validar los datos del formulario usando el validador centralizado antes de persistir.
     $errors = GrupoHorarioValidator::validarHorarioFijo($post_data);
     
     if (empty($errors)) {
-        // Actualizar grupo horario usando la clase centralizada
+        // Persistir los cambios del grupo horario en la base de datos usando el método del modelo.
         $resultado = $gruposHorarios->actualizarGrupoHorarioFijo($grupo_id, $post_data, $empresa_id);
         
         if ($resultado['success']) {
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors['general'] = 'Error al actualizar el grupo horario: ' . $resultado['error'];
         }
     } else {
-        // Update form data with posted values
+        // Actualizar el array de datos del formulario con los valores enviados en el POST para repopular los campos tras errores de validación.
         $form_data = array_merge($form_data, $post_data);
     }
 }
@@ -114,7 +114,7 @@ function procesarFormularioFijo($post_data) {
         'horarios' => []
     ];
     
-    // Procesar horarios
+    // Iterar sobre las líneas de horario del POST y normalizar sus valores para persistencia.
     if (isset($post_data['horarios']) && is_array($post_data['horarios'])) {
         foreach ($post_data['horarios'] as $horario) {
             $data['horarios'][] = [
@@ -126,7 +126,7 @@ function procesarFormularioFijo($post_data) {
         }
     }
     
-    // Asegurar al menos un horario vacío si no hay ninguno
+    // Garantizar que siempre exista al menos una línea de horario vacía para facilitar la UI.
     if (empty($data['horarios'])) {
         $data['horarios'] = [['meses' => [], 'dia' => '', 'hora_entrada' => '', 'hora_salida' => '']];
     }
@@ -134,14 +134,14 @@ function procesarFormularioFijo($post_data) {
     return $data;
 }
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido
+// Función encapsuladora que genera el HTML del contenido principal usando output buffering.
 function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $grupo_id) {
     ob_start();
     ?>
@@ -186,7 +186,7 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
     <?php MultiSelect::renderScript(); ?>
     
     <script>
-        // Form validation and dynamic functionality
+        // Inicializar la validación del formulario y las funcionalidades dinámicas del lado cliente.
         document.addEventListener('DOMContentLoaded', function() {
             initializeFormValidation();
             initializeDynamicHorarios();
@@ -199,13 +199,13 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
             form.addEventListener('submit', function(e) {
                 const errors = [];
                 
-                // Validate basic fields
+                // Validar los campos básicos del formulario (nombre del grupo).
                 const nombre = document.getElementById('nombre').value.trim();
                 if (!nombre) {
                     errors.push('El nombre del grupo es obligatorio');
                 }
                 
-                // Validate schedules
+                // Validar que cada línea de horario tenga todos los campos obligatorios correctamente cumplimentados.
                 const horarioRows = document.querySelectorAll('.horario-row');
                 if (horarioRows.length === 0) {
                     errors.push('Debe configurar al menos una línea de horario');
@@ -248,7 +248,7 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
         }
 
         function initializeDynamicHorarios() {
-            // Add schedule line functionality
+            // Gestionar la adición de nuevas líneas de horario mediante delegación de eventos en el contenedor.
             document.addEventListener('click', function(e) {
                 if (e.target.matches('.add-horario-btn')) {
                     e.preventDefault();
@@ -272,7 +272,7 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
             const template = getHorarioRowTemplate(newIndex);
             container.insertAdjacentHTML('beforeend', template);
             
-            // Initialize MultiSelect for the new row
+            // Inicializar el componente MultiSelect en la nueva fila recién insertada en el DOM.
             const newRow = container.lastElementChild;
             const multiselect = newRow.querySelector('.multiselect-container');
             if (multiselect && window.MultiSelect) {
@@ -300,7 +300,7 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
             const rows = container.querySelectorAll('.horario-row');
             
             rows.forEach((row, index) => {
-                // Update field names
+                // Actualizar los atributos name de los campos para mantener el índice correcto en el array POST.
                 const fields = row.querySelectorAll('input, select');
                 fields.forEach(field => {
                     if (field.name) {
@@ -308,7 +308,7 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
                     }
                 });
                 
-                // Update labels
+                // Actualizar las etiquetas visibles con el número de línea correcto tras reordenar las filas.
                 const label = row.querySelector('.horario-label');
                 if (label) {
                     label.textContent = `Línea de Horario ${index + 1}`;
@@ -383,9 +383,9 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 $content = renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $grupo_id);
 
-// Usar el BaseLayout para renderizar la página completa
+// Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
 BaseLayout::render('Editar Grupo Horario Fijo', $content, $config_empresa, $user_data);
 ?> 

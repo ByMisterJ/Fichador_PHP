@@ -1,24 +1,24 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir la clase Trabajador
+// Incluir el modelo Trabajador para la autenticación por PIN y la gestión de sesiones.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 
-// Get company configuration for branding
+// Obtener la configuración de marca (branding) de la empresa para personalizar la interfaz de login.
 $config_empresa = [];
 if (class_exists('SubdomainRouter') && SubdomainRouter::isCompanyContext()) {
     try {
-        // Get company info from router
+        // Obtener la información de la empresa a través del enrutador de subdominios.
         $company = SubdomainRouter::getCurrentCompany();
         if ($company) {
-            // Get full configuration from database
+            // Cargar la configuración completa de la empresa desde la base de datos.
             require_once __DIR__ . '/../shared/models/Empresa.php';
             $empresa = new Empresa();
-            $config_empresa = $empresa->obtenerConfiguracion(1); // Use ID 1 as it's the company in each database
+            $config_empresa = $empresa->obtenerConfiguracion(1); // Se usa el ID 1 ya que cada base de datos pertenece a una empresa
 
             if (!$config_empresa) {
-                // Fallback to basic company info
+                // Configuración de respaldo con valores mínimos si la consulta a la BD no devuelve resultados.
                 $config_empresa = [
                     'nombre_app' => $company['nombre'] ?? 'Fichador',
                     'color_app' => '#3B82F6',
@@ -35,7 +35,7 @@ if (class_exists('SubdomainRouter') && SubdomainRouter::isCompanyContext()) {
         ];
     }
 } else {
-    // Default configuration
+    // Configuración por defecto si no se está en un contexto de subdominio de empresa.
     $config_empresa = [
         'nombre_app' => 'Fichador',
         'color_app' => '#3B82F6',
@@ -43,7 +43,7 @@ if (class_exists('SubdomainRouter') && SubdomainRouter::isCompanyContext()) {
     ];
 }
 
-// Si el trabajador ya está logueado, redirigir al dashboard
+// Si el trabajador ya dispone de una sesión autenticada activa, redirigir directamente al dashboard.
 if (Trabajador::estaLogueado()) {
     header('Location: /app/dashboard.php');
     exit();
@@ -51,26 +51,26 @@ if (Trabajador::estaLogueado()) {
 
 $mensaje_error = '';
 
-// Manejar el envío del formulario de login
+// Procesar el envío del formulario de autenticación (método HTTP POST).
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pin = trim($_POST['pin'] ?? '');
 
-    // Crear instancia de la clase Trabajador
+    // Instanciar el modelo Trabajador para ejecutar la lógica de autenticación.
     $trabajador = new Trabajador();
 
-    // Validación básica
+    // Validar el formato del PIN antes de realizar la consulta a la base de datos.
     if (!$trabajador->validarPin($pin)) {
         $mensaje_error = 'El PIN debe tener exactamente 4 números.';
     } else {
         try {
-            // Autenticar trabajador por PIN
+            // Autenticar al trabajador verificando el PIN contra los registros de la base de datos.
             $datosTrabajador = $trabajador->autenticarPorPin($pin);
 
             if ($datosTrabajador) {
-                // Establecer sesión del trabajador
+                // Establecer las variables de sesión del trabajador autenticado.
                 $trabajador->establecerSesionTrabajador($datosTrabajador, $pin);
 
-                // Redirigir al dashboard
+                // Redirigir al panel de control tras la autenticación exitosa.
                 header('Location: /app/dashboard.php');
                 exit();
             } else {
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } catch (Exception $e) {
             $mensaje_error = 'Error de conexión. Inténtalo más tarde.';
-            // Log del error para debugging
+            // Registrar el error en el log del servidor para facilitar la depuración.
             error_log("Error en login: " . $e->getMessage());
         }
     }
@@ -102,12 +102,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="../assets/js/tailwind.min.js"></script>
     <link href="../assets/css/font-awesome.min.css" rel="stylesheet">
     <?php
-    // Get company colors
+    // Obtener los colores corporativos de la empresa para generar las variables CSS dinámicas del login.
     $primary_color = $config_empresa['color_app'] ?? '#3B82F6';
-    $secondary_color = adjustBrightness($primary_color, -20); // Darker version
-    $accent_color = adjustBrightness($primary_color, 20); // Lighter version
+    $secondary_color = adjustBrightness($primary_color, -20); // Versión más oscura
+    $accent_color = adjustBrightness($primary_color, 20); // Versión más clara
     
-    // Function to adjust color brightness
+    // Función auxiliar para ajustar el brillo de un color hexadecimal dado un porcentaje.
     function adjustBrightness($hex, $percent)
     {
         $hex = str_replace('#', '', $hex);
@@ -201,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Company Logo/Icon -->
             <div class="flex items-center justify-center mb-6">
                 <?php
-                // Use FileHelper for logo handling
+                // Usar el helper de ficheros para resolver la URL pública del logotipo de la empresa.
                 require_once __DIR__ . '/../shared/utils/FileHelper.php';
                 $logo_filepath = $config_empresa['logo_filepath'] ?? null;
                 $logo_url = null;
@@ -209,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!empty($logo_filepath)) {
                     $logo_url = FileHelper::getFileUrl($logo_filepath);
 
-                    // Check if file actually exists, if not, don't show logo
+                    // Verificar la existencia física del archivo; si no existe, no renderizar la imagen.
                     if (!FileHelper::fileExists($logo_filepath)) {
                         $logo_url = null;
                     }
@@ -283,32 +283,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <!-- JavaScript -->
     <script>
-        // Auto-focus on PIN field
+        // Enfocar automáticamente el campo de PIN al cargar la página para mejorar la experiencia de usuario (UX).
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('pin').focus();
         });
 
-        // Only allow numbers in PIN field
+        // Filtrar la entrada del campo PIN para permitir únicamente caracteres numéricos y enviar el formulario automáticamente.
         document.getElementById('pin').addEventListener('input', function (e) {
             this.value = this.value.replace(/[^0-9]/g, '');
 
-            // Auto-submit when 4 digits are entered
+            // Enviar el formulario automáticamente cuando se hayan introducido los 4 dígitos del PIN.
             if (this.value.length === 4) {
-                // Small delay to show the 4th digit
+                // Pequeño retardo para que el usuario pueda ver el 4.º dígito antes del envío automático.
                 setTimeout(() => {
                     this.form.submit();
                 }, 300);
             }
         });
 
-        // Prevent non-numeric input
+        // Cancelar el evento de tecla si el carácter introducido no es numérico para bloquear caracteres no permitidos.
         document.getElementById('pin').addEventListener('keypress', function (e) {
             if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
                 e.preventDefault();
             }
         });
 
-        // Add loading state to button on submit
+        // Mostrar el estado de carga en el botón de envío para proporcionar feedback visual durante la autenticación.
         document.querySelector('form').addEventListener('submit', function () {
             const button = document.querySelector('button[type="submit"]');
             const pin = document.getElementById('pin').value;
@@ -319,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
-        // Add visual feedback for PIN input
+        // Actualizar los estilos del campo PIN dinámicamente según el número de dígitos introducidos.
         document.getElementById('pin').addEventListener('input', function () {
             const length = this.value.length;
             if (length > 0) {

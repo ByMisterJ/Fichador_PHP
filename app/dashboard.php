@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir las clases necesarias
+// Incluir los modelos y componentes necesarios para esta vista.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/components/MenuHelper.php';
 require_once __DIR__ . '/../shared/models/Fichajes.php';
@@ -11,13 +11,13 @@ require_once __DIR__ . '/../shared/layouts/BaseLayout.php';
 require_once __DIR__ . '/../shared/components/StatusIndicator.php';
 require_once __DIR__ . '/../assets/css/components.php';
 
-// Verificar si el trabajador está logueado
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit();
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $trabajador_login = $_SESSION['trabajador_login'] ?? 'N/A';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
@@ -28,10 +28,10 @@ $tiempo_login = $_SESSION['tiempo_login'] ?? date('Y-m-d H:i:s');
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Obtener estado real de fichaje desde la base de datos
+// Obtener el estado actual de fichaje del trabajador en tiempo real desde la base de datos.
 $fichajes = new Fichajes();
 $estado_fichaje = $fichajes->getEstadoActual($trabajador_id, $empresa_id);
 $horas_hoy = $fichajes->calcularHorasTrabajadas($trabajador_id, $empresa_id, date('Y-m-d'));
@@ -42,14 +42,14 @@ $es_entrada = $estado_fichaje['es_entrada'];
 $tiene_sesion_activa = $estado_fichaje['tiene_sesion_activa'];
 $horas_generadas = $horas_hoy['total_formateado'];
 
-// Obtener datos para el gráfico (solo para admin/supervisor)
+// Obtener los datos estadísticos de horas trabajadas para el gráfico (solo para admin/supervisor).
 $datos_grafico = [];
 $empleados_por_estado_sesion = [];
 $vacaciones_pendientes_count = 0;
 $incidencias_por_empleado = [];
 $total_incidencias = 0;
 if (strtolower($rol_trabajador) !== 'empleado') {
-    // Determinar centro_id para supervisores
+    // Determinar el centro_id a usar: para supervisores, se filtra por su centro asignado.
     $centro_id_supervisor = null;
     if (strtolower($rol_trabajador) === 'supervisor') {
         $trabajador_model = new Trabajador();
@@ -61,24 +61,24 @@ if (strtolower($rol_trabajador) !== 'empleado') {
     $datos_grafico = $fichajes->obtenerHorasSemanaTrabajo($empresa_id, $centro_id_supervisor);
     $empleados_por_estado_sesion = $fichajes->contarEmpleadosPorEstadoSesion();
 
-    // Obtener incidencias por empleado (última semana)
+    // Obtener el recuento de incidencias por empleado en la última semana para el panel de incidencias.
     $incidencias_por_empleado = $fichajes->obtenerConteoIncidenciasPorEmpleado($empresa_id, $centro_id_supervisor);
 
-    // Calcular total de incidencias
+    // Calcular el total acumulado de incidencias para mostrar en el indicador del dashboard.
     $total_incidencias = array_sum(array_column($incidencias_por_empleado, 'total_incidencias'));
 }
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Determinar el título de la página
+// Determinar el título de la página según el rol del usuario autenticado.
 $page_title = strtolower($rol_trabajador) === 'empleado' ? 'Fichar' : 'Dashboard';
 
-// Función para renderizar el contenido del dashboard
+// Función encapsuladora que genera el HTML del panel de control usando output buffering.
 function renderDashboardContent($rol_trabajador, $estado_fichaje, $horas_hoy, $fichajes, $trabajador_id, $empresa_id, $config_empresa, $datos_grafico = [], $vacaciones_pendientes_count = 0, $empleados_por_estado_sesion = [], $incidencias_por_empleado = [], $total_incidencias = 0)
 {
     ob_start();
@@ -581,7 +581,7 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // Current time display
+        // Actualizar el reloj de hora actual en el panel de control.
         function updateTime() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('es-ES', {
@@ -592,7 +592,7 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
             document.getElementById('current-time').textContent = timeString;
         }
 
-        // Update time every second
+        // Actualizar el reloj cada segundo mediante un intervalo periódico.
         updateTime();
         setInterval(updateTime, 1000);
 
@@ -643,22 +643,22 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
 
             console.log('Starting timer with start time:', startTime);
 
-            // Clear any existing timer
+            // Limpiar cualquier intervalo de timer activo antes de iniciar uno nuevo.
             if (sessionTimer) {
                 clearInterval(sessionTimer);
             }
 
             sessionTimer = setInterval(() => {
-                // Parse the server time (which is already in Madrid timezone)
+                // Parsear la hora de inicio de sesión (ya está en zona horaria de Madrid).
                 const start = new Date(startTime);
 
-                // Check if date is valid
+                // Verificar que el objeto Date sea válido antes de operar con él.
                 if (isNaN(start.getTime())) {
                     console.error('Invalid start time format:', startTime);
                     return;
                 }
 
-                // Create a "now" time in Madrid timezone
+                // Obtener la hora actual ajustada a la zona horaria de Madrid (Europe/Madrid).
                 const now = new Date();
                 const madridTime = new Date(now.toLocaleString("es-ES", { timeZone: "Europe/Madrid" }));
 
@@ -684,13 +684,13 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
             }
         }
 
-        // Clock in/out functionality (only for employees)
+        // Funcionalidad del botón de fichaje (entrada/salida), disponible solo para empleados.
         const clockButton = document.getElementById('clock-button');
         if (clockButton) {
             let isClockIn = <?php echo json_encode($estado_fichaje['es_entrada']); ?>;
 
             clockButton.addEventListener('click', async function () {
-                // Add loading state
+                // Activar el estado de carga en el botón para proporcionar feedback visual durante el procesamiento.
                 this.disabled = true;
                 this.innerHTML = '<i class="fas fa-spinner fa-spin mr-3"></i>Procesando...';
 
@@ -700,7 +700,7 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
                         // Obtener ubicación
                         currentLocation = await getCurrentLocation();
                     <?php else: ?>
-                        // Location disabled - set to null
+                        // Localización desactivada en la configuración: se establece null como valor de ubicación.
                         currentLocation = null;
                     <?php endif; ?>
 
@@ -722,7 +722,7 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
                         })
                     });
 
-                    // Check if session expired (401 Unauthorized)
+                    // Verificar si la sesión ha expirado (HTTP 401 Unauthorized) y redirigir al login.
                     if (response.status === 401) {
                         showNotification('Tu sesión ha expirado. Redirigiendo al login...', 'error');
                         setTimeout(() => {
@@ -782,9 +782,9 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
                 clockButton.style.borderColor = '';
             }
 
-            // Status and hours elements removed
+            // Los elementos de estado y horas han sido eliminados del layout actual.
 
-            // Manejar timer de sesión y tiempo total
+            // Gestionar el temporizador de sesión activa y el indicador de tiempo total trabajado.
             if (estado.tiene_sesion_activa) {
                 // Remover display de tiempo total si existe
                 const totalTimeDisplay = document.getElementById('total-time-display');
@@ -848,9 +848,9 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
             }
         }
 
-        // Cargar fichajes del día - removed since we reload the page now
+        // La carga de fichajes del día ya no es necesaria: la página se recarga completa tras cada fichaje.
 
-        // Actualizar display de fichajes
+        // Actualizar el display del historial de fichajes del día en el panel de control.
         function updateFichajesDisplay(fichajes) {
             const container = document.getElementById('fichajes-del-dia');
 
@@ -985,7 +985,7 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
             <?php endif; ?>
         }
 
-        // Notification system
+        // Sistema de notificaciones flotantes en la esquina superior derecha del dashboard.
         function showNotification(message, type = 'success') {
             const notification = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-500' : 'bg-green-500';
@@ -1001,12 +1001,12 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
 
             document.body.appendChild(notification);
 
-            // Animate in
+            // Iniciar la animación de entrada de la notificación.
             setTimeout(() => {
                 notification.classList.remove('translate-x-full');
             }, 100);
 
-            // Animate out and remove
+            // Iniciar la animación de salida y eliminar la notificación del DOM tras 3 segundos.
             setTimeout(() => {
                 notification.classList.add('translate-x-full');
                 setTimeout(() => {
@@ -1015,13 +1015,13 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
             }, 3000);
         }
 
-        /* PWA APP MOVIL */
+        /* ==================== MÓDULO PWA (Progressive Web App) ==================== */
         let deferredPrompt;
 
-        // Debug: Log when the page loads
+        // Registrar en consola cuando la página carga para depurar el flujo de instalación PWA.
         console.log('PWA: Page loaded, waiting for beforeinstallprompt event...');
 
-        // Debug: Check if the install button exists
+        // Verificar que el botón de instalación existe en el DOM.
         const installButton = document.getElementById('add-to-home-screen');
         console.log('PWA: Install button found:', !!installButton);
 
@@ -1053,7 +1053,7 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
             }
         });
 
-        // Debug: Check if already installed
+        // Detectar si la PWA ya fue instalada en el dispositivo del usuario.
         window.addEventListener('appinstalled', (evt) => {
             console.log('PWA: App was installed');
             if (installButton) {
@@ -1153,7 +1153,7 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
 
         // ==================== FIN EDICIÓN DE ANOTACIONES ====================
 
-        // Register service worker
+        // Registrar el service worker para habilitar las funcionalidades PWA (caché offline, notificaciones push, etc.).
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
@@ -1170,9 +1170,9 @@ if (($config_empresa["empleados_ver_fichajes"] == 0) && (strtolower($rol_trabaja
     return ob_get_clean();
 }
 
-// Renderizar el contenido
+// Capturar el HTML generado mediante output buffering e invocarlo con los datos preparados.
 $content = renderDashboardContent($rol_trabajador, $estado_fichaje, $horas_hoy, $fichajes, $trabajador_id, $empresa_id, $config_empresa, $datos_grafico, $vacaciones_pendientes_count, $empleados_por_estado_sesion, $incidencias_por_empleado, $total_incidencias);
 
-// Usar el BaseLayout para renderizar la página completa
+// Invocar el layout base para construir y enviar la respuesta HTML completa al cliente.
 BaseLayout::render($page_title, $content, $config_empresa, $user_data);
 ?>

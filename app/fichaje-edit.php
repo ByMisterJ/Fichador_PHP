@@ -1,8 +1,8 @@
 <?php
-// Initialize app (session, subdomain routing, etc.)
+// Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir archivos necesarios
+// Incluir los modelos, componentes y utilidades necesarios para esta vista.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/Fichajes.php';
 require_once __DIR__ . '/../shared/validators/FichajeValidator.php';
@@ -13,65 +13,65 @@ require_once __DIR__ . '/../shared/components/Breadcrumb.php';
 require_once __DIR__ . '/../assets/css/components.php';
 require_once __DIR__ . '/../shared/forms/FichajeForm.php';
 
-// Verificar autenticación
+// Verificar que el usuario dispone de una sesión autenticada válida; de lo contrario, redirigir al login.
 if (!Trabajador::estaLogueado()) {
     header('Location: /app/login.php');
     exit;
 }
 
-// Verificar que el usuario tenga permisos (solo administradores y supervisores)
+// Verificar que el rol del usuario autoriza el acceso: solo administradores y supervisores pueden continuar.
 $rol_trabajador = $_SESSION['rol_trabajador'] ?? 'Empleado';
 if (!in_array(strtolower($rol_trabajador), ['administrador', 'supervisor'])) {
     header('Location: /app/dashboard.php');
     exit;
 }
 
-// Obtener datos del trabajador de la sesión
+// Recuperar los datos identificativos del usuario autenticado desde la superglobal $_SESSION.
 $nombre_trabajador = $_SESSION['nombre_trabajador'] ?? 'Trabajador';
 $correo_trabajador = $_SESSION['correo_trabajador'] ?? 'N/A';
 $trabajador_id = $_SESSION['id_trabajador'] ?? null;
 $empresa_id = $_SESSION['empresa_id'] ?? null;
 
-// Obtener configuración de la empresa
+// Obtener la configuración de la empresa (colores, logo, nombre de app, etc.) desde la sesión.
 $config_empresa = Trabajador::obtenerConfiguracionEmpresa();
 
-// Verificar que se proporcione el ID del fichaje
+// Verificar que el parámetro de identificador del fichaje esté presente en la query string (GET).
 $fichaje_id = $_GET['id'] ?? null;
 if (!$fichaje_id || !is_numeric($fichaje_id)) {
     header('Location: fichajes.php?error=invalid_id');
     exit;
 }
 
-// Inicializar clases
+// Instanciar los modelos necesarios para la operación de edición de fichajes.
 $fichajes = new Fichajes();
 
-// Cargar datos del fichaje para edición
+// Cargar los datos del fichaje desde la base de datos para pre-rellenar el formulario de edición.
 $fichaje_data = $fichajes->cargarDatosFichajeParaEdicion($fichaje_id, $empresa_id);
 if (!$fichaje_data) {
     header('Location: fichajes.php?error=not_found');
     exit;
 }
 
-// Verificar permisos específicos
+// Verificar permisos específicos: supervisores solo pueden editar fichajes de su propio centro.
 $permisos = FichajeValidator::validarPermisosEdicion($fichaje_data['empresa_id'], $empresa_id, $rol_trabajador);
 if (!$permisos['success']) {
     header('Location: fichajes.php?error=no_permissions');
     exit;
 }
 
-// Variables para el formulario
+// Inicializar las variables de control del formulario (errores y mensaje de éxito).
 $errors = [];
 $form_data = $fichaje_data;
 
-// Procesar formulario
+// Procesar el envío del formulario (método HTTP POST) validando y persistiendo los datos.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $form_data = procesarFormularioFichaje($_POST);
     
-    // Validar datos
+    // Validar los datos recibidos antes de persistirlos en la base de datos.
     $errors = FichajeValidator::validarFichajeEdicion($form_data);
     
     if (empty($errors)) {
-        // Actualizar fichaje
+        // Actualizar el registro de fichaje en la base de datos con los nuevos valores.
         $resultado = $fichajes->actualizarFichaje(
             $fichaje_id, 
             $form_data, 
@@ -103,14 +103,14 @@ function procesarFormularioFichaje($post_data) {
     ];
 }
 
-// Preparar datos de usuario para el layout
+// Preparar el array de datos del usuario que se pasará al layout base para la cabecera de navegación.
 $user_data = [
     'nombre' => $nombre_trabajador,
     'correo' => $correo_trabajador,
     'rol' => $rol_trabajador
 ];
 
-// Función para renderizar el contenido
+// Función encapsuladora que genera el HTML del contenido principal usando output buffering.
 function renderContent() {
     global $fichaje_data, $form_data, $errors, $fichaje_id;
     
