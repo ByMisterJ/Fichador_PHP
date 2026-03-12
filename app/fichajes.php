@@ -790,16 +790,16 @@ function renderFichajesContent($fichajes_list, $filtros, $empleados_options, $op
             // Cerrar dropdown
             document.getElementById('exportDropdown').classList.add('hidden');
             
-            // Obtener parámetros actuales de la URL
+            // Leer los parámetros de filtrado actuales de la query string para incluirlos en la URL de exportación.
             const urlParams = new URLSearchParams(window.location.search);
             
             // Agregar formato
             urlParams.set('formato', formato);
             
-            // Construir URL de exportación
+            // Construir la URL del endpoint de exportación incluyendo los filtros activos como parámetros GET.
             const exportUrl = 'generar_fichajes_export.php?' + urlParams.toString();
             
-            // Abrir en nueva ventana/pestaña para descarga
+            // Abrir la URL de exportación en una nueva pestaña para que el navegador descargue el archivo.
             window.open(exportUrl, '_blank');
         }
         
@@ -1026,7 +1026,7 @@ function obtenerOpcionesIncidencias($empresa_id) {
 // Obtener opciones de incidencias
 $opciones_incidencias = obtenerOpcionesIncidencias($empresa_id);
 
-// Renderizar la página
+// Capturar el HTML generado mediante output buffering e invocar el layout base para enviar la respuesta al cliente.
 $content = renderFichajesContent($fichajes_list, $filtros, $empleados_options, $opciones_incidencias, $total_registros, $empleados_unicos, $fechas_unicas, $sesiones_abiertas, $rol_trabajador, $config_empresa, $pdo, $mostrar_eliminados, $modo_edicion === '1');
 
 BaseLayout::render('Búsqueda de Fichajes', $content, $config_empresa, $user_data);

@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $linea = trim($linea);
                 if (empty($linea)) continue;
                 
-                // Parsear: fecha, descripcion
+                // Extraer los campos fecha y descripción del bloque de texto enviado en el formulario.
                 $partes = array_map('trim', explode(',', $linea, 2));
                 
                 if (count($partes) < 2) {
@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fecha_raw = $partes[0];
                 $descripcion = $partes[1];
                 
-                // Intentar parsear la fecha en varios formatos
+                // Intentar interpretar la fecha usando múltiples formatos para mayor robustez en la entrada.
                 $fecha = null;
                 $formatos = ['Y-m-d', 'd/m/Y', 'd-m-Y', 'd.m.Y'];
                 foreach ($formatos as $formato) {
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     continue;
                 }
                 
-                // Validar datos
+                // Validar los datos del festivo antes de persistirlos en la base de datos.
                 $errores_validacion = $festivos->validarDatosFestivo($fecha, $descripcion);
                 
                 if (!empty($errores_validacion)) {
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     continue;
                 }
                 
-                // Crear festivo
+                // Persistir el nuevo festivo en la base de datos mediante el método del modelo.
                 $resultado = $festivos->crearFestivo($empresa_id, $fecha, $descripcion);
                 if ($resultado['success']) {
                     $creados++;
@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $resultado = $festivos->actualizarFestivo($id, $empresa_id, $fecha, $descripcion);
                 if ($resultado['success']) {
                     $success_message = $resultado['message'];
-                    // Limpiar datos del formulario tras éxito
+                    // Limpiar los datos del formulario tras el éxito para evitar reenvíos accidentales (PRG pattern).
                     $_POST = [];
                 } else {
                     $errors['general'] = $resultado['error'];
@@ -160,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $resultado = $festivos->eliminarFestivo($id, $empresa_id);
             if ($resultado['success']) {
                 $success_message = $resultado['message'];
-                // Limpiar datos del formulario tras éxito
+                // Limpiar los datos del formulario tras el éxito para evitar reenvíos accidentales (PRG pattern).
                 $_POST = [];
             } else {
                 $errors['general'] = $resultado['error'];
@@ -362,7 +362,7 @@ function renderFestivosContent($festivos_list, $total_festivos, $errors, $succes
     </div>
     
     <script>
-        // Variables globales para almacenar los cambios pendientes
+        // Variables globales para acumular los cambios de festivos pendientes de confirmación.
         let cambiosPendientes = {};
         
         function prepararActualizacion(festivoId) {
@@ -384,7 +384,7 @@ function renderFestivosContent($festivos_list, $total_festivos, $errors, $succes
             
             const datos = cambiosPendientes[festivoId];
             
-            // Validaciones básicas
+            // Realizar las validaciones básicas del lado cliente antes de enviar el formulario.
             if (!datos.fecha || !datos.descripcion.trim()) {
                 alert('La fecha y descripción son obligatorias');
                 return;
@@ -395,7 +395,7 @@ function renderFestivosContent($festivos_list, $total_festivos, $errors, $succes
                 return;
             }
             
-            // Crear formulario oculto para enviar los datos
+            // Crear dinámicamente un formulario oculto para enviar los datos de edición al servidor.
             const form = document.createElement('form');
             form.method = 'POST';
             form.style.display = 'none';
@@ -430,7 +430,7 @@ function renderFestivosContent($festivos_list, $total_festivos, $errors, $succes
         
         function eliminarFestivo(festivoId) {
             if (confirm('¿Estás seguro de que quieres eliminar este festivo? Esta acción no se puede deshacer.')) {
-                // Crear formulario oculto para enviar los datos
+                // Crear dinámicamente un formulario oculto para enviar los datos de edición al servidor.
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.style.display = 'none';

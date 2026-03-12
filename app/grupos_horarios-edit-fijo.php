@@ -2,7 +2,7 @@
 // Inicializar la aplicación: arrancar la sesión PHP, resolver el subdominio y cargar la configuración global.
 require_once __DIR__ . '/../shared/utils/app_init.php';
 
-// Incluir archivos necesarios
+// Incluir los modelos, componentes y utilidades necesarios para esta vista.
 require_once __DIR__ . '/../shared/models/Trabajador.php';
 require_once __DIR__ . '/../shared/models/GruposHorarios.php';
 require_once __DIR__ . '/../shared/validators/GrupoHorarioValidator.php';

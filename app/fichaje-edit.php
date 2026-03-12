@@ -165,7 +165,7 @@ function renderContent() {
     return ob_get_clean();
 }
 
-// Renderizar la página
+// Capturar el HTML generado mediante output buffering e invocar el layout base para enviar la respuesta al cliente.
 $content = renderContent();
 BaseLayout::render('Editar Fichaje', $content, $config_empresa, $user_data);
 ?> 

@@ -119,7 +119,7 @@ function procesarFormularioConfiguracion($post_data) {
         'nombre_app' => trim($post_data['nombre_app'] ?? ''),
 
         
-        // Configuraciones generales (toggles - check for value '1')
+        // Opciones generales (toggles booleanos: 1 si activado, 0 si desactivado).
         'localizacion' => isset($post_data['localizacion']) && $post_data['localizacion'] == '1' ? 1 : 0,
         'salir_app_fichar' => isset($post_data['salir_app_fichar']) && $post_data['salir_app_fichar'] == '1' ? 1 : 0,
         'enviar_informe_administrador' => isset($post_data['enviar_informe_administrador']) && $post_data['enviar_informe_administrador'] == '1' ? 1 : 0,
@@ -129,7 +129,7 @@ function procesarFormularioConfiguracion($post_data) {
         'empleados_solicitar_incidencias' => isset($post_data['empleados_solicitar_incidencias']) && $post_data['empleados_solicitar_incidencias'] == '1' ? 1 : 0,
         'empleados_detalles_fichajes' => isset($post_data['empleados_detalles_fichajes']) && $post_data['empleados_detalles_fichajes'] == '1' ? 1 : 0,
         
-        // Configuración de horario (toggles - check for value '1')
+        // Parámetros de control horario (toggles booleanos y valores numéricos de ventana temporal).
         'grupo_horario' => isset($post_data['grupo_horario']) && $post_data['grupo_horario'] == '1' ? 1 : 0,
         'forzar_horario' => isset($post_data['forzar_horario']) && $post_data['forzar_horario'] == '1' ? 1 : 0,
         'forzar_inicio_grupo_horario' => isset($post_data['forzar_inicio_grupo_horario']) && $post_data['forzar_inicio_grupo_horario'] == '1' ? 1 : 0,
@@ -137,7 +137,7 @@ function procesarFormularioConfiguracion($post_data) {
         'grupo_horario_respetar_segundos' => isset($post_data['grupo_horario_respetar_segundos']) && $post_data['grupo_horario_respetar_segundos'] == '1' ? 1 : 0,
         'grupo_horario_ventana_minutos' => (int)($post_data['grupo_horario_ventana_minutos'] ?? 15),
         
-        // Automatizaciones (toggles - check for value '1')
+        // Reglas de automatización del sistema de fichaje (toggles booleanos).
         'generar_ausencia_olvido_fichaje' => isset($post_data['generar_ausencia_olvido_fichaje']) && $post_data['generar_ausencia_olvido_fichaje'] == '1' ? 1 : 0,
         'cerrar_fichaje_automaticamente_olvido_fichar' => isset($post_data['cerrar_fichaje_automaticamente_olvido_fichar']) && $post_data['cerrar_fichaje_automaticamente_olvido_fichar'] == '1' ? 1 : 0,
     ];

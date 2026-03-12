@@ -464,13 +464,13 @@ function renderVacacionesContent($vacaciones_list, $filtros, $empleados_options,
         }
 
         function exportarVacaciones() {
-            // Obtener parámetros actuales de la URL
+            // Leer los parámetros de filtrado actuales de la query string para incluirlos en la URL de exportación.
             const urlParams = new URLSearchParams(window.location.search);
 
-            // Construir URL de exportación
+            // Construir la URL del endpoint de exportación incluyendo los filtros activos como parámetros GET.
             const exportUrl = 'generar_vacaciones_export.php?' + urlParams.toString();
 
-            // Abrir en nueva ventana/pestaña para descarga
+            // Abrir la URL de exportación en una nueva pestaña para que el navegador descargue el archivo.
             window.open(exportUrl, '_blank');
         }
     </script>

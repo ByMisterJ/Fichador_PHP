@@ -307,7 +307,7 @@ function renderFichajeViewContent($fichaje_detalle, $historial_cambios, $rol_tra
                             <?php 
                             $userAgent = $cambio['user_agent'] ?? '';
                             if (strlen($userAgent) > 40) {
-                                // Extraer navegador principal
+                                // Extraer el nombre del navegador principal a partir del User-Agent para mostrar en la vista de detalle.
                                 $browser = 'Desconocido';
                                 if (strpos($userAgent, 'Chrome') !== false) $browser = 'Chrome';
                                 elseif (strpos($userAgent, 'Firefox') !== false) $browser = 'Firefox';
@@ -498,7 +498,7 @@ function renderFichajeViewContent($fichaje_detalle, $historial_cambios, $rol_tra
     return ob_get_clean();
 }
 
-// Renderizar la página
+// Capturar el HTML generado mediante output buffering e invocar el layout base para enviar la respuesta al cliente.
 $content = renderFichajeViewContent($fichaje_detalle, $historial_cambios, $rol_trabajador, $fichaje_id, $back_url);
 BaseLayout::render('Detalle de Sesión', $content, $config_empresa, $user_data);
 ?> 
