@@ -192,7 +192,129 @@ function renderEditGrupoHorarioFijoContent($form_data, $errors, $empleados, $gru
             initializeDynamicHorarios();
         });
 
-        
+        function initializeFormValidation() {
+            const form = document.getElementById('grupoHorarioForm');
+            if (!form) return;
+
+            form.addEventListener('submit', function(e) {
+                const errors = [];
+                
+                // Validate basic fields
+                const nombre = document.getElementById('nombre').value.trim();
+                if (!nombre) {
+                    errors.push('El nombre del grupo es obligatorio');
+                }
+                
+                // Validate schedules
+                const horarioRows = document.querySelectorAll('.horario-row');
+                if (horarioRows.length === 0) {
+                    errors.push('Debe configurar al menos una línea de horario');
+                } else {
+                    horarioRows.forEach((row, index) => {
+                        const mesesSelect = row.querySelector('[name*="[meses]"]');
+                        const diaSelect = row.querySelector('[name*="[dia]"]');
+                        const horaEntrada = row.querySelector('[name*="[hora_entrada]"]');
+                        const horaSalida = row.querySelector('[name*="[hora_salida]"]');
+                        
+                        if (mesesSelect && mesesSelect.selectedOptions.length === 0) {
+                            errors.push(`Línea ${index + 1}: Debe seleccionar al menos un mes`);
+                        }
+                        
+                        if (diaSelect && !diaSelect.value) {
+                            errors.push(`Línea ${index + 1}: Debe seleccionar un día`);
+                        }
+                        
+                        if (horaEntrada && !horaEntrada.value) {
+                            errors.push(`Línea ${index + 1}: Debe especificar hora de entrada`);
+                        }
+                        
+                        if (horaSalida && !horaSalida.value) {
+                            errors.push(`Línea ${index + 1}: Debe especificar hora de salida`);
+                        }
+                        
+                        if (horaEntrada && horaSalida && horaEntrada.value && horaSalida.value) {
+                            if (horaEntrada.value >= horaSalida.value) {
+                                errors.push(`Línea ${index + 1}: La hora de salida debe ser posterior a la hora de entrada`);
+                            }
+                        }
+                    });
+                }
+                
+                if (errors.length > 0) {
+                    e.preventDefault();
+                    alert('Errores encontrados:\n\n' + errors.join('\n'));
+                }
+            });
+        }
+
+        function initializeDynamicHorarios() {
+            // Add schedule line functionality
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('.add-horario-btn')) {
+                    e.preventDefault();
+                    addHorarioLine();
+                }
+                
+                if (e.target.matches('.remove-horario-btn')) {
+                    e.preventDefault();
+                    removeHorarioLine(e.target);
+                }
+            });
+        }
+
+        function addHorarioLine() {
+            const container = document.getElementById('horarios-container');
+            if (!container) return;
+            
+            const existingRows = container.querySelectorAll('.horario-row');
+            const newIndex = existingRows.length;
+            
+            const template = getHorarioRowTemplate(newIndex);
+            container.insertAdjacentHTML('beforeend', template);
+            
+            // Initialize MultiSelect for the new row
+            const newRow = container.lastElementChild;
+            const multiselect = newRow.querySelector('.multiselect-container');
+            if (multiselect && window.MultiSelect) {
+                window.MultiSelect.init(multiselect);
+            }
+        }
+
+        function removeHorarioLine(button) {
+            const row = button.closest('.horario-row');
+            if (row) {
+                const container = document.getElementById('horarios-container');
+                const remainingRows = container.querySelectorAll('.horario-row');
+                
+                if (remainingRows.length > 1) {
+                    row.remove();
+                    updateHorarioIndices();
+                } else {
+                    alert('Debe mantener al menos una línea de horario');
+                }
+            }
+        }
+
+        function updateHorarioIndices() {
+            const container = document.getElementById('horarios-container');
+            const rows = container.querySelectorAll('.horario-row');
+            
+            rows.forEach((row, index) => {
+                // Update field names
+                const fields = row.querySelectorAll('input, select');
+                fields.forEach(field => {
+                    if (field.name) {
+                        field.name = field.name.replace(/\[\d+\]/, `[${index}]`);
+                    }
+                });
+                
+                // Update labels
+                const label = row.querySelector('.horario-label');
+                if (label) {
+                    label.textContent = `Línea de Horario ${index + 1}`;
+                }
+            });
+        }
 
         function getHorarioRowTemplate(index) {
             return `
